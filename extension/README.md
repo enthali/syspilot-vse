@@ -69,3 +69,23 @@ await vscode.commands.executeCommand('s2s.vsCommand', {
 
 Also check the **Output panel → channel "S2S Prototype"** for activation
 log lines (which `appName`, sessionId, workspace folders).
+
+## Discoveries (end of day 2026-05-13)
+
+VS Code CLI has a hidden `--agents` flag and a full `agent` subcommand:
+
+```
+code --agents              # Opens the Agents Window
+code agent host            # Start a local agent host server (HTTP REST API)
+code agent ps              # List active sessions on a running agent host
+code agent stop            # Cancel the active turn of a session
+code agent kill            # Force kill the agent host process tree
+code agent logs            # Stream live session events
+```
+
+This is the **AHP (Agent Host Protocol)** machinery exposed as a CLI tool.
+Likely a second, cleaner channel than ACP-via-stdin for everything we want:
+inject prompts, list/stop sessions, tail event streams.
+
+Investigate next session: does `code agent host` give us a JSON REST API
+that bypasses the lock-file dance entirely?
