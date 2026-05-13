@@ -1,0 +1,21 @@
+{
+  "name": "s2s-prototype",
+  "displayName": "S2S Prototype",
+  "description": "Minimal test of running an extension inside the Agents Window",
+  "version": "0.0.1",
+  "publisher": "syspilot",
+  "engines": { "vscode": "^1.95.0" },
+  "main": "./extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "commands": [
+      { "command": "syspilot.s2s.vsCommand", "title": "S2S: Run VS Command (MCP Alias)", "category": "S2S" },
+      { "command": "s2s.vsCommand",        "title": "S2S: Run VS Command",         "category": "S2S" },
+      { "command": "s2s.hello",            "title": "S2S: Hello (test)",            "category": "S2S" },
+      { "command": "s2s.openBrowser",      "title": "S2S: Open Browser (test)",     "category": "S2S" },
+      { "command": "s2s.gotoAlice",        "title": "S2S: Go to acp-lab-alice",     "category": "S2S" },
+      { "command": "s2s.gotoBob",          "title": "S2S: Go to acp-lab-bob",       "category": "S2S" },
+      { "command": "s2s.discoverCommands", "title": "S2S: Discover Commands",       "category": "S2S" }
+    ]
+  }
+}
