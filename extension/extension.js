@@ -215,7 +215,15 @@ function activate(context) {
     },
     async ({ commandId, args = [] }) => {
       try {
-        const result = await executeVsCommand({ commandId, args }, channel);
+        // Auto-convert {__uri: "scheme:/path"} markers to vscode.Uri instances
+        // since URIs can't be JSON-serialized natively.
+        const hydrated = args.map(a => {
+          if (a && typeof a === 'object' && typeof a.__uri === 'string') {
+            return vscode.Uri.parse(a.__uri);
+          }
+          return a;
+        });
+        const result = await executeVsCommand({ commandId, args: hydrated }, channel);
         return { ok: true, commandId, result: result === undefined ? null : result };
       } catch (e) {
         return { ok: false, commandId, error: e.message };
