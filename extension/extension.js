@@ -10,6 +10,16 @@ const mcp = require('./mcpServer');
 
 const MCP_PORT = 31415;
 
+function copyRecursive(src, dst) {
+  fs.mkdirSync(dst, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const s = path.join(src, entry.name);
+    const d = path.join(dst, entry.name);
+    if (entry.isDirectory()) copyRecursive(s, d);
+    else if (entry.isFile()) fs.copyFileSync(s, d);
+  }
+}
+
 function deployBundledSkills(channel) {
   const srcRoot = path.join(__dirname, 'skills');
   const dstRoot = path.join(os.homedir(), '.copilot', 'skills');
@@ -21,14 +31,7 @@ function deployBundledSkills(channel) {
     const srcDir = path.join(srcRoot, name);
     if (!fs.statSync(srcDir).isDirectory()) continue;
     const dstDir = path.join(dstRoot, name);
-    fs.mkdirSync(dstDir, { recursive: true });
-    for (const file of fs.readdirSync(srcDir)) {
-      const srcFile = path.join(srcDir, file);
-      const dstFile = path.join(dstDir, file);
-      if (fs.statSync(srcFile).isFile()) {
-        fs.copyFileSync(srcFile, dstFile);
-      }
-    }
+    copyRecursive(srcDir, dstDir);
     channel.appendLine(`[skills] deployed: ${name} -> ${dstDir}`);
   }
 }

@@ -16,8 +16,28 @@ Each session has a FIFO inbox. Messages are delivered by writing to the
 receiver's inbox file. A `send --notify` call also injects a prompt into
 the receiver via ACP so it processes the message immediately.
 
-The engine lives at `C:\workspace\syspilot-vse\extension\engine\cli.js`
-(Node.js, stdlib only — no install needed).
+## Prerequisites
+
+- **Node.js** must be installed and on `PATH` (`node --version` works).
+- The CLI lives next to this skill at `engine/cli.js` and uses only Node
+  stdlib — no `npm install` needed.
+
+## CLI invocation
+
+All commands use the bundled engine. Pick the form that works in your shell:
+
+```bash
+# POSIX (bash, zsh, fish)
+node ~/.copilot/skills/s2s/engine/cli.js <command> ...
+```
+
+```powershell
+# PowerShell (Windows / cross-platform)
+node "$env:USERPROFILE\.copilot\skills\s2s\engine\cli.js" <command> ...
+```
+
+For brevity, examples below use the POSIX form. Substitute the PowerShell
+form on Windows if you are not in a POSIX shell. All commands output JSON.
 
 ---
 
@@ -32,8 +52,8 @@ was usually given to you in your opening prompt (e.g. "you are alice").
    _"What is my session name for S2S messaging?"_ — do not guess.
 2. Verify the name appears in the session list:
 
-   ```powershell
-   node C:\workspace\syspilot-vse\extension\engine\cli.js list
+   ```bash
+   node ~/.copilot/skills/s2s/engine/cli.js list
    ```
 
 3. If your name is not in the list, ask the user to confirm or correct it.
@@ -46,48 +66,36 @@ Once confirmed, use that name as `--from` (when sending) and `--session`
 
 ## Commands
 
-All commands output JSON.
-
 ### List sessions in the current workspace
 
-```powershell
-node C:\workspace\syspilot-vse\extension\engine\cli.js list
+```bash
+node ~/.copilot/skills/s2s/engine/cli.js list
 ```
 
-Add `--all-workspaces` to see sessions across all workspaces.
+Add `--all-workspaces` to see sessions across all workspaces:
 
-```powershell
-node C:\workspace\syspilot-vse\extension\engine\cli.js list --all-workspaces
+```bash
+node ~/.copilot/skills/s2s/engine/cli.js list --all-workspaces
 ```
 
 Output fields per session: `uuid`, `name`, `cwd`, `repository`, `branch`,
-`inboxDepth` (pending messages), `locked` (bool — session is active).
+`inboxDepth` (pending messages).
 
 ---
 
 ### Send a message
 
-```powershell
-node C:\workspace\syspilot-vse\extension\engine\cli.js send `
-  --to <name-or-uuid> `
-  --text "your message here" `
-  --from <your-session-name>
+```bash
+node ~/.copilot/skills/s2s/engine/cli.js send \
+  --to <name-or-uuid> \
+  --from <your-session-name> \
+  --text "your message here"
 ```
 
 Add `--notify` to also inject a prompt into the receiver via ACP (the
-receiver will immediately process the message). Only use `--notify` when
-the target session is **not** currently locked (check `locked` field from
-`list`). Sending to a locked session without `--notify` is safe — message
-queues and waits.
-
-```powershell
-# Send with ACP notification (target must be idle)
-node C:\workspace\syspilot-vse\extension\engine\cli.js send `
-  --to bob `
-  --from alice `
-  --text "Review PR #42 and report back" `
-  --notify
-```
+receiver will immediately process the message). Sending without `--notify`
+is always safe — the message queues until the receiver next checks its
+inbox. Only use `--notify` when the target session is currently idle.
 
 Output: `{ "id": "<uuid>", "to": "<uuid>", "queued": true, "notified": false|true }`
 
@@ -95,8 +103,8 @@ Output: `{ "id": "<uuid>", "to": "<uuid>", "queued": true, "notified": false|tru
 
 ### Check inbox depth (non-destructive)
 
-```powershell
-node C:\workspace\syspilot-vse\extension\engine\cli.js peek --session <your-name>
+```bash
+node ~/.copilot/skills/s2s/engine/cli.js peek --session <your-name>
 ```
 
 Output: `{ "depth": 2, "next": { "id": "...", "from": "alice", "text": "...", "ts": "..." } }`
@@ -109,64 +117,43 @@ Returns `null` for `next` when inbox is empty.
 
 Removes and returns the oldest message from your inbox (FIFO).
 
-```powershell
-node C:\workspace\syspilot-vse\extension\engine\cli.js receive --session <your-name>
+```bash
+node ~/.copilot/skills/s2s/engine/cli.js receive --session <your-name>
 ```
 
 Output: `{ "id": "...", "from": "alice", "text": "...", "ts": "..." }`
 Returns `null` when inbox is empty.
 
-Call `receive` in a loop until `null` to drain the full inbox:
-
-```powershell
-do {
-  $msg = node C:\workspace\syspilot-vse\extension\engine\cli.js receive --session <your-name> | ConvertFrom-Json
-  if ($msg) { Write-Host "FROM $($msg.from): $($msg.text)" }
-} while ($msg)
-```
+To drain the full inbox, call `receive` in a loop until it returns `null`.
 
 ---
 
 ## Typical Workflows
 
-### Agent start-of-turn inbox check
+### Start-of-turn inbox check
 
-At the start of each turn, check if you have pending messages:
+At the start of each turn, peek to see if anything is waiting:
 
-```powershell
-$next = node C:\workspace\syspilot-vse\extension\engine\cli.js peek --session <your-name> | ConvertFrom-Json
-if ($next.depth -gt 0) {
-  Write-Host "You have $($next.depth) message(s). Next from: $($next.next.from)"
-}
+```bash
+node ~/.copilot/skills/s2s/engine/cli.js peek --session <your-name>
 ```
 
-Then drain and process:
-
-```powershell
-do {
-  $msg = node C:\workspace\syspilot-vse\extension\engine\cli.js receive --session <your-name> | ConvertFrom-Json
-  if ($msg) {
-    # process $msg.text from $msg.from
-  }
-} while ($msg)
-```
+If `depth > 0`, drain by repeatedly calling `receive` until it returns
+`null`, processing each message in order.
 
 ### Fan-out: send tasks to multiple agents
 
-```powershell
-@("designer", "reviewer", "tester") | ForEach-Object {
-  node C:\workspace\syspilot-vse\extension\engine\cli.js send `
-    --to $_ --from pm --text "Start sprint-7 tasks"
-}
-```
+Loop over recipients in your shell of choice and call `send` per target.
 
 ### Send a reply
 
-```powershell
-node C:\workspace\syspilot-vse\extension\engine\cli.js send `
-  --to $msg.from `
-  --from <your-name> `
-  --text "Done. PR #42 reviewed — 3 issues found, see session notes."
+Use the `from` field of the received message as the new `--to`:
+
+```bash
+node ~/.copilot/skills/s2s/engine/cli.js send \
+  --to <message.from> \
+  --from <your-name> \
+  --text "Done. PR #42 reviewed — 3 issues found."
 ```
 
 ---
@@ -177,26 +164,23 @@ Every send and receive is appended to `.s2s/log.jsonl` in the workspace
 root. Two event types:
 
 ```json
-{ "event": "send",    "id": "...", "from": "alice", "to": "bob",   "text": "...", "ts": "..." }
-{ "event": "receive", "id": "...", "by": "bob",                                   "ts": "..." }
+{ "event": "send",    "id": "...", "from": "alice", "to": "bob", "text": "...", "ts": "..." }
+{ "event": "receive", "id": "...", "by": "bob",                                 "ts": "..." }
 ```
 
-To inspect the log:
-
-```powershell
-Get-Content .s2s\log.jsonl | ConvertFrom-Json
-```
+The `id` field links a `receive` back to its original `send`.
 
 ---
 
 ## Important Rules
 
-1. **Never send to a locked session with `--notify`** — check `locked` from
-   `list` first. Sending without `--notify` is always safe.
+1. **Only `--notify` an idle session.** Notifying a busy session can
+   interrupt its current turn. Sending without `--notify` is always safe.
 2. **Always pass `--from`** — receivers need to know who sent the message.
-3. **Your name is your identity** — resolve ambiguity by UUID if two
-   sessions share a name.
+3. **Your name is your identity.** If two sessions share a name in the
+   same workspace, resolve ambiguity by passing the UUID instead.
 4. **`receive` is destructive** — it pops the message. Use `peek` first
    if you only want to look.
-5. **Workspace scoping** — by default only sessions in the same workspace
-   (matching `cwd`) are visible. Use `--all-workspaces` for cross-project.
+5. **Workspace scoping** — by default only sessions in the current
+   workspace are visible to `list`. Use `--all-workspaces` for cross-
+   project routing. UUID lookups always work regardless of workspace.
