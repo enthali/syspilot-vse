@@ -3,9 +3,35 @@
 // VS Code commands to navigate sessions and control UI.
 
 const vscode = require('vscode');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const mcp = require('./mcpServer');
 
 const MCP_PORT = 31415;
+
+function deployBundledSkills(channel) {
+  const srcRoot = path.join(__dirname, 'skills');
+  const dstRoot = path.join(os.homedir(), '.copilot', 'skills');
+  if (!fs.existsSync(srcRoot)) {
+    channel.appendLine('[skills] no bundled skills folder, skipping');
+    return;
+  }
+  for (const name of fs.readdirSync(srcRoot)) {
+    const srcDir = path.join(srcRoot, name);
+    if (!fs.statSync(srcDir).isDirectory()) continue;
+    const dstDir = path.join(dstRoot, name);
+    fs.mkdirSync(dstDir, { recursive: true });
+    for (const file of fs.readdirSync(srcDir)) {
+      const srcFile = path.join(srcDir, file);
+      const dstFile = path.join(dstDir, file);
+      if (fs.statSync(srcFile).isFile()) {
+        fs.copyFileSync(srcFile, dstFile);
+      }
+    }
+    channel.appendLine(`[skills] deployed: ${name} -> ${dstDir}`);
+  }
+}
 
 // Hardcoded sessions for initial proof-of-concept.
 const SESSIONS = {
@@ -94,6 +120,12 @@ function activate(context) {
   channel.appendLine(`[activate] loaded at ${new Date().toISOString()}`);
   channel.appendLine(`[activate] appName: ${vscode.env.appName}`);
   channel.appendLine(`[activate] sessionId: ${vscode.env.sessionId}`);
+
+  try {
+    deployBundledSkills(channel);
+  } catch (e) {
+    channel.appendLine(`[skills] deploy failed: ${e.message}`);
+  }
 
   const runVsCommandHandler = async (input) => {
       channel.appendLine('[s2s.vsCommand] invoked');
