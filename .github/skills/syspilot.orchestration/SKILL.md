@@ -48,7 +48,17 @@ agents: ["syspilot.design", "syspilot.implement", "syspilot.mece"]
 ## Completion Reporting
 
 When an orchestrator completes a delegated task, it **SHALL** report back
-to the sender via `jarvis_sendToSession`. This applies to:
+to the sender using the **s2s** skill. Invoke the bundled CLI:
+
+```bash
+node ~/.copilot/skills/s2s/engine/cli.js send \
+  --to <sender-name-or-uuid> \
+  --from <your-session-name> \
+  --text "<completion report>" \
+  --notify
+```
+
+This applies to:
 
 - **CM → PM**: After completing a Change Request
 - **QM → PM**: After completing a Quality Audit
@@ -62,5 +72,5 @@ The report **SHALL** include:
 ## Rules
 
 * Only agents listed in `agents:` frontmatter MAY be invoked — calling an unlisted agent MUST NOT happen.
-* Orchestrators (CM, QM) SHALL send completion reports via `jarvis_sendToSession`. MUST NOT silently drop results.
+* Orchestrators (CM, QM) SHALL send completion reports via the **s2s** skill (`s2s send` with `--from <self>` and `--to <sender>`, plus `--notify` to wake the receiver). MUST NOT silently drop results.
 * Report SHALL include: status, commit hashes (if applicable), summary, any issues or follow-up items.
